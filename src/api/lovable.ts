@@ -56,7 +56,7 @@ export async function pollForJobs(carrierNames?: string[]): Promise<Job[]> {
       throw new Error(`Poll request failed: ${response.status} ${response.statusText}`);
     }
 
-    const data: PollResponse = await response.json();
+    const data = (await response.json()) as PollResponse;
     return data.jobs || [];
   } catch (error) {
     logger.error({ error }, 'Failed to poll for jobs');
