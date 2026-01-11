@@ -1,5 +1,5 @@
 import { config } from './config';
-import { pollForJobs, sendWebhook } from './api/lovable';
+import { pollJobs, webhook } from './api/lovable';
 import { withBrowser } from './engine/playwright';
 import { runCarrierScript } from './carriers';
 import { normalizeError } from './engine/errors';
@@ -17,7 +17,7 @@ async function processJob(job: Job): Promise<void> {
   );
 
   // Send RUNNING status with initial step
-  await sendWebhook({
+  await webhook({
     worker_id: config.lovable.workerId,
     carrier_submission_id: job.carrier_submission_id,
     status: 'RUNNING',
@@ -34,7 +34,7 @@ async function processJob(job: Job): Promise<void> {
         },
         async (page) => {
           // Send RUNNING status with step
-          await sendWebhook({
+          await webhook({
             worker_id: config.lovable.workerId,
             carrier_submission_id: job.carrier_submission_id,
             status: 'RUNNING',
@@ -70,7 +70,7 @@ async function processJob(job: Job): Promise<void> {
       }
     }
 
-    await sendWebhook(webhookPayload);
+    await webhook(webhookPayload);
 
     logger.info(
       { carrierSubmissionId: job.carrier_submission_id, status: result.status },
@@ -84,7 +84,7 @@ async function processJob(job: Job): Promise<void> {
       'Job failed'
     );
 
-    await sendWebhook({
+    await webhook({
       worker_id: config.lovable.workerId,
       carrier_submission_id: job.carrier_submission_id,
       status: 'FAILED',
@@ -107,11 +107,11 @@ async function main() {
 
   while (true) {
     try {
-      const jobs = await pollForJobs();
+      const pollResp = await pollJobs();
 
-      if (jobs && jobs.length > 0) {
+      if (pollResp.jobs && pollResp.jobs.length > 0) {
         // Process the first job only
-        await processJob(jobs[0]);
+        await processJob(pollResp.jobs[0]);
       } else {
         logger.debug('No jobs available, sleeping');
       }

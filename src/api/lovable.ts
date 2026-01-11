@@ -1,16 +1,7 @@
 import { config } from '../config';
-import { logger } from '../logger';
 import { Job } from '../carriers/types';
 
-export interface PollRequest {
-  worker_id: string;
-  carrier_names?: string[];
-  limit: number;
-}
-
-export interface PollResponse {
-  jobs: Job[];
-}
+export type PollResponse = { jobs: Job[]; worker_id?: string };
 
 export interface Screenshot {
   step: string;
@@ -30,61 +21,40 @@ export interface WebhookPayload {
   screenshots?: Screenshot[];
 }
 
-export async function pollForJobs(carrierNames?: string[]): Promise<PollResponse> {
-  const url = `${config.lovable.baseUrl}/functions/v1/automation-poll`;
-  
-  const requestBody: PollRequest = {
-    worker_id: config.lovable.workerId,
-    limit: 1,
-  };
-  
-  if (carrierNames && carrierNames.length > 0) {
-    requestBody.carrier_names = carrierNames;
-  }
-  
-  try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-worker-key': config.lovable.workerApiKey,
-      },
-      body: JSON.stringify(requestBody),
-    });
+export async function pollJobs(carrierNames?: string[]): Promise<PollResponse> {
+  const r = await fetch(`${config.lovable.baseUrl}/functions/v1/automation-poll`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-worker-key': config.lovable.workerApiKey,
+    },
+    body: JSON.stringify({
+      worker_id: config.lovable.workerId,
+      carrier_names: carrierNames,
+      limit: 1,
+    }),
+  });
 
-    if (!res.ok) {
-      throw new Error(`Poll request failed: ${res.status} ${res.statusText}`);
-    }
-
-    const data = (await res.body.json()) as PollResponse;
-    return data;
-  } catch (error) {
-    logger.error({ error }, 'Failed to poll for jobs');
-    throw error;
+  if (!r.ok) {
+    const errorText = await r.text();
+    throw new Error(`poll failed ${r.status}: ${errorText}`);
   }
+
+  return (await r.json()) as PollResponse;
 }
 
-export async function sendWebhook(payload: WebhookPayload): Promise<void> {
-  const url = `${config.lovable.baseUrl}/functions/v1/automation-webhook`;
-  
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-worker-key': config.lovable.workerApiKey,
-      },
-      body: JSON.stringify(payload),
-    });
+export async function webhook(payload: WebhookPayload): Promise<void> {
+  const r = await fetch(`${config.lovable.baseUrl}/functions/v1/automation-webhook`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-worker-key': config.lovable.workerApiKey,
+    },
+    body: JSON.stringify(payload),
+  });
 
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`Webhook request failed: ${response.status} ${response.statusText} - ${text}`);
-    }
-
-    logger.info({ payload }, 'Webhook sent successfully');
-  } catch (error) {
-    logger.error({ error, payload }, 'Failed to send webhook');
-    throw error;
+  if (!r.ok) {
+    const errorText = await r.text();
+    throw new Error(`webhook failed ${r.status}: ${errorText}`);
   }
 }
