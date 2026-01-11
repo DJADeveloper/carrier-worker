@@ -30,7 +30,7 @@ export interface WebhookPayload {
   screenshots?: Screenshot[];
 }
 
-export async function pollForJobs(carrierNames?: string[]): Promise<Job[]> {
+export async function pollForJobs(carrierNames?: string[]): Promise<PollResponse> {
   const url = `${config.lovable.baseUrl}/functions/v1/automation-poll`;
   
   const requestBody: PollRequest = {
@@ -43,7 +43,7 @@ export async function pollForJobs(carrierNames?: string[]): Promise<Job[]> {
   }
   
   try {
-    const response = await fetch(url, {
+    const res = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -52,12 +52,12 @@ export async function pollForJobs(carrierNames?: string[]): Promise<Job[]> {
       body: JSON.stringify(requestBody),
     });
 
-    if (!response.ok) {
-      throw new Error(`Poll request failed: ${response.status} ${response.statusText}`);
+    if (!res.ok) {
+      throw new Error(`Poll request failed: ${res.status} ${res.statusText}`);
     }
 
-    const data = (await response.json()) as PollResponse;
-    return data.jobs || [];
+    const data = (await res.body.json()) as PollResponse;
+    return data;
   } catch (error) {
     logger.error({ error }, 'Failed to poll for jobs');
     throw error;
