@@ -76,11 +76,11 @@ async function processJob(job: Job): Promise<void> {
       { carrierSubmissionId: job.carrier_submission_id, status: result.status },
       'Job completed'
     );
-  } catch (error) {
-    const normalized = normalizeError(error);
+  } catch (err) {
+    const normalized = normalizeError(err);
     
     logger.error(
-      { error, carrierSubmissionId: job.carrier_submission_id },
+      { err, carrierSubmissionId: job.carrier_submission_id },
       'Job failed'
     );
 
@@ -115,8 +115,9 @@ async function main() {
       } else {
         logger.debug('No jobs available, sleeping');
       }
-    } catch (error) {
-      logger.error({ error }, 'Error in main loop');
+    } catch (err) {
+      const e = err as any;
+      logger.error({ err: e, message: e?.message, stack: e?.stack }, 'Error in main loop');
     }
 
     // Sleep before next poll
@@ -136,7 +137,7 @@ process.on('SIGTERM', () => {
 });
 
 // Start the worker
-main().catch((error) => {
-  logger.fatal({ error }, 'Fatal error in main');
+main().catch((err) => {
+  logger.fatal({ err }, 'Fatal error in main');
   process.exit(1);
 });

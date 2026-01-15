@@ -25,8 +25,8 @@ export async function runUniversal(job: Job, page: Page): Promise<CarrierResult>
       errorMessage: 'Universal carrier automation is not yet implemented. Portal structure may have changed.',
       screenshots,
     };
-  } catch (error) {
-    logger.error({ error, carrierSubmissionId: job.carrier_submission_id }, 'Universal automation failed');
-    throw error;
+  } catch (err) {
+    logger.error({ err, carrierSubmissionId: job.carrier_submission_id }, 'Universal automation failed');
+    throw err;
   }
 }

@@ -37,7 +37,8 @@ export async function pollJobs(carrierNames?: string[]): Promise<PollResponse> {
 
   if (!r.ok) {
     const errorText = await r.text();
-    throw new Error(`poll failed ${r.status}: ${errorText}`);
+    const truncatedText = errorText.length > 2000 ? errorText.substring(0, 2000) + '...' : errorText;
+    throw new Error(`poll failed ${r.status}: ${truncatedText}`);
   }
 
   return (await r.json()) as PollResponse;
@@ -55,6 +56,7 @@ export async function webhook(payload: WebhookPayload): Promise<void> {
 
   if (!r.ok) {
     const errorText = await r.text();
-    throw new Error(`webhook failed ${r.status}: ${errorText}`);
+    const truncatedText = errorText.length > 2000 ? errorText.substring(0, 2000) + '...' : errorText;
+    throw new Error(`webhook failed ${r.status}: ${truncatedText}`);
   }
 }

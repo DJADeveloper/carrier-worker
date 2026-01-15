@@ -25,8 +25,8 @@ export async function runCypress(job: Job, page: Page): Promise<CarrierResult> {
       errorMessage: 'Cypress carrier automation is not yet implemented. Portal structure may have changed.',
       screenshots,
     };
-  } catch (error) {
-    logger.error({ error, carrierSubmissionId: job.carrier_submission_id }, 'Cypress automation failed');
-    throw error;
+  } catch (err) {
+    logger.error({ err, carrierSubmissionId: job.carrier_submission_id }, 'Cypress automation failed');
+    throw err;
   }
 }

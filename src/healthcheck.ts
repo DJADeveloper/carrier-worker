@@ -16,7 +16,7 @@ export function startHealthcheckServer(port: number = 8080): void {
     logger.info({ port }, 'Healthcheck server started');
   });
 
-  server.on('error', (error) => {
-    logger.warn({ error, port }, 'Healthcheck server error (non-fatal)');
+  server.on('error', (err) => {
+    logger.warn({ err, port }, 'Healthcheck server error (non-fatal)');
   });
 }

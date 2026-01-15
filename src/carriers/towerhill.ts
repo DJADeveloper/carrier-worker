@@ -75,17 +75,17 @@ export async function runTowerHill(job: Job, page: Page): Promise<CarrierResult>
       quoteResult,
       screenshots,
     };
-  } catch (error) {
-    logger.error({ error, carrierSubmissionId: job.carrier_submission_id }, 'Tower Hill automation failed');
+  } catch (err) {
+    logger.error({ err, carrierSubmissionId: job.carrier_submission_id }, 'Tower Hill automation failed');
     
     // Try to capture error screenshot
     try {
       const errorScreenshot = await takeScreenshotBase64(page, 'error');
       screenshots.push(errorScreenshot);
-    } catch (screenshotError) {
-      logger.warn({ screenshotError }, 'Failed to capture error screenshot');
+    } catch (screenshotErr) {
+      logger.warn({ err: screenshotErr }, 'Failed to capture error screenshot');
     }
 
-    throw error;
+    throw err;
   }
 }
