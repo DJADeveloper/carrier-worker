@@ -97,8 +97,12 @@ async function processJob(job: Job): Promise<void> {
 async function main() {
   logger.info({ workerId: config.lovable.workerId }, 'Starting carrier worker');
   
-  // Log startup OK
-  logger.info('Worker startup: OK');
+  // Log startup OK and masked key for debugging
+  const maskedKey = config.lovable.workerApiKey 
+    ? `${config.lovable.workerApiKey.substring(0, 4)}...${config.lovable.workerApiKey.substring(config.lovable.workerApiKey.length - 4)}`
+    : 'MISSING';
+    
+  logger.info({ workerId: config.lovable.workerId, maskedKey }, 'Worker startup: OK');
 
   // Start healthcheck server (for Railway/Fly.io health checks)
   // Use PORT env var if set, otherwise default to 8080
