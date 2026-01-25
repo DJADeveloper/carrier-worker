@@ -186,27 +186,50 @@ async function main() {
   // Start healthcheck server (for Railway/Fly.io health checks)
   // Use PORT env var if set, otherwise default to 8080
   const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 8080;
-  startHealthcheckServer(port);
+  try {
+    startHealthcheckServer(port);
+    logger.info({ port }, 'Healthcheck server started successfully');
+  } catch (err) {
+    logger.warn({ err, port }, 'Healthcheck server failed to start (non-fatal, continuing)');
+  }
 
+  // Main polling loop - never exits under normal operation
+  logger.info({ intervalMs: config.polling.intervalMs }, 'Starting polling loop');
+  
   while (true) {
     try {
+      logger.info('Polling for jobs...');
       const pollResp = await pollJobs();
 
       if (pollResp.jobs && pollResp.jobs.length > 0) {
+        logger.info({ jobCount: pollResp.jobs.length }, `Claimed ${pollResp.jobs.length} job(s)`);
         // Process the first job only
         await processJob(pollResp.jobs[0]);
       } else {
-        logger.debug('No jobs available, sleeping');
+        logger.info({ sleepMs: config.polling.intervalMs }, `No jobs, sleeping ${config.polling.intervalMs}ms`);
       }
     } catch (err) {
       const e = err as any;
-      logger.error({ err: e, message: e?.message, stack: e?.stack }, 'Error in main loop');
+      logger.error({ err: e, message: e?.message, stack: e?.stack }, 'Error in main loop (continuing)');
+      // Continue polling even after errors - don't exit
     }
 
     // Sleep before next poll
     await new Promise((resolve) => setTimeout(resolve, config.polling.intervalMs));
   }
 }
+
+// Handle unhandled rejections - keep process alive
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error({ reason, promise }, 'Unhandled promise rejection (keeping process alive)');
+  // Don't exit - let the main loop continue
+});
+
+// Handle uncaught exceptions - log but try to keep process alive
+process.on('uncaughtException', (err) => {
+  logger.fatal({ err }, 'Uncaught exception (attempting to continue)');
+  // Don't exit immediately - let the main loop handle it
+});
 
 // Handle graceful shutdown
 process.on('SIGINT', () => {
@@ -219,8 +242,15 @@ process.on('SIGTERM', () => {
   process.exit(0);
 });
 
-// Start the worker
+// Start the worker - ensure it never exits under normal operation
 main().catch((err) => {
-  logger.fatal({ err }, 'Fatal error in main');
-  process.exit(1);
+  logger.fatal({ err }, 'Fatal error in main - attempting to restart loop');
+  // Instead of exiting, try to restart the main loop after a delay
+  setTimeout(() => {
+    logger.info('Restarting main loop after fatal error');
+    main().catch((restartErr) => {
+      logger.fatal({ err: restartErr }, 'Failed to restart main loop - exiting');
+      process.exit(1);
+    });
+  }, 5000);
 });

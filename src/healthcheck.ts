@@ -17,6 +17,11 @@ export function startHealthcheckServer(port: number = 8080): void {
   });
 
   server.on('error', (err) => {
-    logger.warn({ err, port }, 'Healthcheck server error (non-fatal)');
+    logger.warn({ err, port }, 'Healthcheck server error (non-fatal, continuing)');
+    // Don't throw - this is non-fatal, worker should continue
   });
+
+  // Keep server reference to prevent garbage collection
+  // This ensures the server stays alive
+  (global as any).healthcheckServer = server;
 }
