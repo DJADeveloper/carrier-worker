@@ -3,19 +3,98 @@ import { pollJobs, webhook } from './api/lovable';
 import { withBrowser } from './engine/playwright';
 import { runCarrierScript } from './carriers';
 import { normalizeError } from './engine/errors';
+import { ErrorCode } from './engine/errors';
 import { Job } from './carriers/types';
 import { logger } from './logger';
 import { startHealthcheckServer } from './healthcheck';
+import { generateSimulatedQuote, generateSimulationScreenshot } from './carriers/simulation';
 
 async function processJob(job: Job): Promise<void> {
   logger.info(
     { 
       carrierSubmissionId: job.carrier_submission_id,
       carrierName: job.carrier_name,
+      hasCredentials: job.credentials !== null,
     },
     'Processing job'
   );
 
+  // Check if simulation mode should be triggered
+  const shouldSimulate = config.simulation.enabled || job.credentials === null;
+
+  if (shouldSimulate) {
+    logger.info(
+      { carrierSubmissionId: job.carrier_submission_id, reason: config.simulation.enabled ? 'SIMULATE_CARRIER=true' : 'credentials is null' },
+      'Running in simulation mode'
+    );
+
+    // Send RUNNING status with initial step
+    await webhook({
+      worker_id: config.lovable.workerId,
+      carrier_submission_id: job.carrier_submission_id,
+      status: 'RUNNING',
+      last_step: 'initializing',
+    });
+
+    try {
+      // Generate simulated quote
+      const quoteResult = generateSimulatedQuote(job);
+      
+      // Optionally generate screenshot
+      let screenshots: Array<{ step: string; base64: string; content_type: 'image/png' }> = [];
+      
+      try {
+        const screenshot = await withBrowser(
+          {
+            headless: config.playwright.headless,
+            timeout: 10000, // Shorter timeout for screenshot
+          },
+          async (page) => {
+            return await generateSimulationScreenshot(job, quoteResult, page);
+          }
+        );
+        
+        if (screenshot) {
+          screenshots.push(screenshot);
+        }
+      } catch (screenshotErr) {
+        // Screenshot generation is optional, log but continue
+        logger.warn({ err: screenshotErr }, 'Failed to generate simulation screenshot, continuing without it');
+      }
+
+      // Send COMPLETE webhook with quote result
+      await webhook({
+        worker_id: config.lovable.workerId,
+        carrier_submission_id: job.carrier_submission_id,
+        status: 'COMPLETE',
+        last_step: 'Quote generated',
+        quote_result: quoteResult,
+        screenshots: screenshots.length > 0 ? screenshots : undefined,
+      });
+
+      logger.info(
+        { carrierSubmissionId: job.carrier_submission_id, quoteNumber: quoteResult.quote_number },
+        'Simulation completed successfully'
+      );
+    } catch (err) {
+      // If simulation fails, report as FAILED
+      logger.error(
+        { err, carrierSubmissionId: job.carrier_submission_id },
+        'Simulation failed'
+      );
+
+      await webhook({
+        worker_id: config.lovable.workerId,
+        carrier_submission_id: job.carrier_submission_id,
+        status: 'FAILED',
+        error_code: ErrorCode.UNKNOWN_ERROR,
+        error_message: err instanceof Error ? err.message : 'Unknown error in simulation mode',
+      });
+    }
+    return;
+  }
+
+  // Normal processing path (with credentials)
   // Send RUNNING status with initial step
   await webhook({
     worker_id: config.lovable.workerId,

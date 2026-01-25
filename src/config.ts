@@ -18,6 +18,9 @@ export const config = {
   supabase: {
     url: process.env.SUPABASE_URL || '',
   },
+  simulation: {
+    enabled: process.env.SIMULATE_CARRIER === 'true',
+  },
 };
 
 // Validate required config

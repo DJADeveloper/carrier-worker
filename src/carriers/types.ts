@@ -4,7 +4,7 @@ export interface Job {
   credentials: {
     username: string;
     password: string;
-  };
+  } | null;
   quote_request: any;
   client: any;
   property: any;

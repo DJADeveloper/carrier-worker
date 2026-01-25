@@ -10,6 +10,9 @@ export async function runTowerHill(job: Job, page: Page): Promise<CarrierResult>
     logger.info({ carrierSubmissionId: job.carrier_submission_id }, 'Starting Tower Hill automation');
 
     // Use credentials directly from job
+    if (!job.credentials) {
+      throw new Error('Credentials are required for Tower Hill automation');
+    }
     logger.info({ username: job.credentials.username }, 'Using credentials from job');
 
     // Navigate to placeholder URL (no real portal yet)
