@@ -8,6 +8,9 @@ import { Job } from './carriers/types';
 import { logger } from './logger';
 import { startHealthcheckServer } from './healthcheck';
 import { generateSimulatedQuote, generateSimulationScreenshot } from './carriers/simulation';
+import { chromium } from 'playwright';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 async function processJob(job: Job): Promise<void> {
   logger.info(
@@ -182,6 +185,26 @@ async function main() {
     : 'MISSING';
     
   logger.info({ workerId: config.lovable.workerId, maskedKey }, 'Worker startup: OK');
+
+  // Verify Playwright and chromium are available
+  try {
+    const browserPath = chromium.executablePath();
+    let playwrightVersion = 'unknown';
+    try {
+      const packageJsonPath = join(require.resolve('playwright'), '../package.json');
+      const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
+      playwrightVersion = packageJson.version;
+    } catch {
+      // Version check is optional
+    }
+    logger.info({ 
+      playwrightVersion,
+      chromiumPath: browserPath,
+      browsersPath: process.env.PLAYWRIGHT_BROWSERS_PATH || 'default',
+    }, 'Playwright chromium verified');
+  } catch (err) {
+    logger.error({ err }, 'Failed to verify Playwright chromium - screenshots may fail');
+  }
 
   // Start healthcheck server (for Railway/Fly.io health checks)
   // Use PORT env var if set, otherwise default to 8080

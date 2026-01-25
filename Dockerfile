@@ -9,6 +9,10 @@ COPY tsconfig.json ./
 # Install all dependencies (including devDependencies for build)
 RUN npm ci
 
+# Install Playwright browsers and system dependencies
+# This must happen after npm ci but before npm prune
+RUN npx playwright install --with-deps chromium
+
 # Copy source code
 COPY src ./src
 
@@ -16,6 +20,7 @@ COPY src ./src
 RUN npm run build
 
 # Remove devDependencies and cache to reduce image size
+# Note: Keep playwright in dependencies, browsers are already installed above
 RUN npm prune --production && npm cache clean --force
 
 # Set environment to production
